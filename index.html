@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易短视频站</title>
+    <style>
+        * {margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+        body{background:#111;color:#fff;overflow:hidden}
+        /* 全屏上下滑动视频容器 */
+        .feed-container{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch}
+        .video-item{height:100vh;scroll-snap-align:start;position:relative}
+        video{width:100%;height:100%;object-fit:cover}
+        /* 右侧操作按钮 */
+        .action-bar{position:absolute;right:16px;bottom:120px;display:flex;flex-direction:column;gap:24px;align-items:center}
+        .action-btn{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:14px}
+        .icon{font-size:28px}
+        /* 左下角作者简介 */
+        .info{position:absolute;left:16px;bottom:80px;max-width:70%}
+        .author{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+        .avatar{width:40px;height:40px;border-radius:50%;background:#666}
+        .desc{font-size:14px;opacity:0.9}
+        /* 底部导航 */
+        .nav{position:absolute;bottom:0;width:100%;height:60px;background:#0008;display:flex;justify-content:space-around;align-items:center}
+        .nav-item{font-size:14px}
+    </style>
+</head>
+<body>
+<div class="feed-container" id="feed">
+    <!-- 视频卡片，后端动态加载 -->
+</div>
+
+<script>
+// =========【这里改成你的Cloudflare隧道地址！！】=========
+const BACKEND_URL = "https://implementing-buck-recordings-shaped.trycloudflare.com";
+
+// 加载视频列表
+async function loadVideos(){
+    const res = await fetch(`${BACKEND_URL}/api/video/list`);
+    const videos = await res.json();
+    const feedDom = document.getElementById("feed");
+    videos.forEach(v=>{
+        const div = document.createElement("div");
+        div.className="video-item";
+        div.innerHTML=`
+            <video src="${BACKEND_URL}${v.src}" loop muted playsinline></video>
+            <div class="info">
+                <div class="author">
+                    <div class="avatar"></div>
+                    <span>${v.author}</span>
+                </div>
+                <div class="desc">${v.description}</div>
+            </div>
+            <div class="action-bar">
+                <div class="action-btn" onclick="like(${v.id})"><span class="icon">❤️</span><span>${v.like_count}</span></div>
+                <div class="action-btn"><span class="icon">💬</span><span>${v.comment_count}</span></div>
+                <div class="action-btn"><span class="icon">⭐</span><span>${v.collect_count}</span></div>
+            </div>
+            <div class="nav">
+                <div class="nav-item">首页</div>
+                <div class="nav-item">搜索</div>
+                <div class="nav-item">+发布</div>
+                <div class="nav-item">消息</div>
+                <div class="nav-item">我的</div>
+            </div>
+        `;
+        // 进入视口自动播放
+        const video = div.querySelector("video");
+        const obs = new IntersectionObserver((entries)=>{
+            entries.forEach(e=>{
+                if(e.isIntersecting) video.play();
+                else video.pause();
+            })
+        },{threshold:0.6})
+        obs.observe(div);
+        feedDom.appendChild(div);
+    })
+}
+
+// 点赞接口
+async function like(vid){
+    await fetch(`${BACKEND_URL}/api/video/${vid}/like`,{method:"POST",credentials:"include"})
+    loadVideos();
+}
+
+// 页面加载自动拉取视频
+loadVideos();
+</script>
+</body>
+</html>
